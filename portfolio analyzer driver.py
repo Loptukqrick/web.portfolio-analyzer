@@ -368,6 +368,7 @@ plt.show()
 
 # returns your average compounding interest rate accross the
 # investment time period. Need to add each investment result
+principal = 1000 # starting dollar amount for portfolio
 portfolio1 = yearly_return(principal, buy_and_hold_result[0], return_table)
 print(portfolio1)
 print(buy_and_hold_result[0])
