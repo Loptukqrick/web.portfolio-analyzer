@@ -3,9 +3,36 @@
 ###########################################################################
 
 import yfinance as yf
+#from pandas_datareader import data as pdr
 import pandas as pd
 import numpy
+#%load_ext Cython
 
+#yf.pdr_override()
+
+
+# DECLARING VARIABLES AT THE BEGINNING...?
+# user_input_arr is the user's selected portfolio and the other
+# lists are benchmark lists to compare user's portfolio against
+# the bench marks
+user_input_arr = ['WMT', 'T', 'AAPL', 'MSFT', 'GE']
+
+benchmarks_arr = ['AMRMX', 'ANWPX', 'AMECX', 'ABNDX', 
+                 'ABALX', 'AGTHX', 'VTSMX']
+
+full_list = benchmarks_arr + user_input_arr
+
+#                     20%       65%     10%      5%
+aggressive_list = ['AMRMX', 'AGTHX', 'AMECX', 'ABNDX']
+
+#                   25%     40%      20%      15%
+moderate_list = ['ANWPX', 'AMECX', 'ABNDX', 'ABALX']
+
+#                     20%       10%       70%
+conservative_list = ['ABALX', 'AMECX', 'ABNDX']
+
+#              100%
+index_list = ['VTSMX']
 
 # takes list of stock picks and creates dataframe of closing prices for 
 # all of the stocks over the longest possible time frame 
@@ -19,7 +46,10 @@ def organize_data_func(arr):
     count = 0
     for i in stock_list:
         stock = yf.Ticker(i)
+        print('1')
+        print('count: ', count)
         data = stock.history(period="max")
+        #data = pdr.get_data_yahoo(i, start='1970-01-01')
         close = data['Close']
         time_frame_arr.append(close)
         count += 1
@@ -33,14 +63,61 @@ def organize_data_func(arr):
     for i in time_frame_arr:
         trim = i.tail(smallest_period) 
         trimmed_data.append(trim)
-    
+
     ## for some reason, last row is all 'nan' and first row is all 'nan'
-    
     #trimmed_data is a dataframe series that needs the last element removed for being 'nan'
     portfolio_dataframe = pd.concat(trimmed_data, axis=1, keys=arr)
-
     return portfolio_dataframe
 
+
+
+#####################################
+## Need to put this in main after user_list has been
+## defined by the user.
+### TEST BLOCK FOR MULTITHREADING ###
+from concurrent.futures import ProcessPoolExecutor
+def extract(stock_symbol):
+    data_arr = []
+    stock = yf.Ticker(stock_symbol)
+    data = stock.history(period="max")
+    close = data["Close"]
+    data_arr.append(close)
+    return data_arr
+
+
+def clean_and_combine(table_of_prices):
+    stocks_list = table_of_prices
+    #size = len(stock_list)-1
+    #time_frame_arr = []
+    length_arr = []
+    trimmed_data = []
+    #count = 0
+
+    for i in table_of_prices:
+        length_arr.append(len(i[0])) # i -> i[0]
+    length_arr.sort()
+    smallest_period = length_arr[0]
+    
+    trimmed_data = []
+    for i in table_of_prices:
+        print('type: ', type(i[0]))
+        #print('typetype: ', type(i[0][0]))
+        series = i[0]
+        trim = series.tail(smallest_period) 
+        trimmed_data.append(trim)
+
+    ## for some reason, last row is all 'nan' and first row is all 'nan'
+    #trimmed_data is a dataframe series that needs the last element removed for being 'nan'
+    portfolio_dataframe = pd.concat(trimmed_data, axis=1, keys=full_list)#keys=user_input_arr)
+    return portfolio_dataframe
+
+
+
+
+
+
+### END TEST BLOCK ###
+######################
 
 
 
@@ -159,27 +236,7 @@ def yearly_return(p, res, date_list):
 # I GUESS THIS WOULD BE CONSIDERED MAIN: #
 ###################################################################################
 print('1')
-# user_input_arr is the user's selected portfolio and the other
-# lists are benchmark lists to compare user's portfolio against
-# the bench marks
-user_input_arr = ['WMT', 'T', 'AAPL', 'MSFT', 'GE']
 
-benchmarks_arr = ['AMRMX', 'ANWPX', 'AMECX', 'ABNDX', 
-                 'ABALX', 'AGTHX', 'VTSMX']
-
-full_list = benchmarks_arr + user_input_arr
-
-#                     20%       65%     10%      5%
-aggressive_list = ['AMRMX', 'AGTHX', 'AMECX', 'ABNDX']
-
-#                   25%     40%      20%      15%
-moderate_list = ['ANWPX', 'AMECX', 'ABNDX', 'ABALX']
-
-#                     20%       10%       70%
-conservative_list = ['ABALX', 'AMECX', 'ABNDX']
-
-#              100%
-index_list = ['VTSMX']
 
 print('2')
 
@@ -190,18 +247,69 @@ print('2')
 # with General Electric stock and Tesla stock, the dataframe would be limited
 # by the available data for Tesla since Tesla has been around for much less
 # time.
-aggressive_table = organize_data_func(full_list).iloc[:,[0,5,2,3]] # [0,5,2,3]
+
+#aggressive_table = organize_data_func(full_list).iloc[:,[0,5,2,3]] # [0,5,2,3]
 print('3')
-moderate_table = organize_data_func(full_list).iloc[:,[1,2,3,4]]     # [1,2,3,4]
+#print(aggressive_table)
+#moderate_table = organize_data_func(full_list).iloc[:,[1,2,3,4]]     # [1,2,3,4]
 print('4')
-conservative_table = organize_data_func(full_list).iloc[:,[4,2,3]] # [4,2,3]
+#print(moderate_table)
+#conservative_table = organize_data_func(full_list).iloc[:,[4,2,3]] # [4,2,3]
 print('5')
-index_table = organize_data_func(full_list).iloc[:,[6]] # [6]
+#index_table = organize_data_func(full_list).iloc[:,[6]] # [6]
 print('6')
-return_table = organize_data_func(full_list).iloc[:,7:] #[7:]
+#return_table = organize_data_func(full_list).iloc[:,7:] #[7:]
+print('7')
+#print(return_table)
+
+
+# This block is calling the function 'extract()' and the
+# full_list and processing it already. So after, I have
+# to do the clean_and_combine()
+test_list = []
+import concurrent.futures
+def main():
+    #with ProcessPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for r in executor.map(extract, full_list): 
+            # ^^ instead of 'full_list' can do 'user_input_arr'
+            # if we create a database to minimize function calls.
+            test_list.append(r)
+if __name__ == '__main__':
+    main()
+
+print('test_list type: ', type(test_list))
+print('test_list len: ', len(test_list))
+print('test_list lenlen: ', len(test_list[0]))
+print('test_list lenlenlen: ', len(test_list[0][0]))
+print('test_list: ', type(test_list))
+print('test_list[0]: ', type(test_list[0]))
+print('test_list[0][0]: ', type(test_list[0][0]))
+print(' ')
+# test_list <-- list of stocks 
+# test_list[0] <-- list of len==1 of a pandas dataseries
+# test_list[0][0] <-- list of all stock prices.
+# So iterating will be like: test_list[i][0]
+
+print('a')
+t1 = clean_and_combine(test_list)
+print('t1 table: ', t1)
+print('b')
+aggressive_table = t1.iloc[:,[0,5,2,3]]
+print('c')
+moderate_table = t1.iloc[:,[1,2,3,4]]
+conservative_table = t1.iloc[:,[4,2,3]]
+index_table = t1.iloc[:,[6]]
+return_table = t1.iloc[:,7:]
+
+#test_table = organize_data_func(full_list)
+#aggressive_table = test_table.iloc[:,[0,5,2,3]]
+#moderate_table = test_table.iloc[:,[1,2,3,4]]
+#conservative_table = test_table.iloc[:,[4,2,3]]
+#index_table = test_table.iloc[:,[6]]
+#return_table = test_table.iloc[:,7:]
+
 print('8')
-
-
 # period is the rebalancing period. Since each month varies with 
 # its number of trading days, periodic rebalance periods are estimated
 # to align with available data. There seems to be some weird issue with
@@ -221,10 +329,15 @@ print('9')
 # $100 on monday, I can use the percentage table to determine that I
 # would have a portfolio balance of $125 just a day later.
 percent_table = make_return_percentages(period, user_input_arr, return_table)
+print('10')
 aggressive_percent = make_return_percentages(period, aggressive_list, aggressive_table)
+print('11')
 moderate_percent = make_return_percentages(period, moderate_list, moderate_table)
+print('12')
 conservative_percent = make_return_percentages(period, conservative_list, conservative_table)
+print('13')
 index_percent = make_return_percentages(period, index_list, index_table)
+print('14')
 
 
 
@@ -298,14 +411,14 @@ tact_ind = tactical_rebalance(index_allocation, index_percent, im_ind)
 
 #print('buy and hold: ', buy_and_hold_result[0], buy_and_hold_result[1])
 #print('length: ', len(buy_and_hold_result[2]))
-#print('aggressive: ', bhagg[0], bhagg[1])
-#print('length2: ', len(bhagg[2]))
+print('aggressive: ', bhagg[0], bhagg[1])
+print('length2: ', len(bhagg[2]))
 #print('moderate: ', bhmod[0], bhmod[1])
 #print('length3: ', len(bhmod[2]))
 #print('conservative: ', bhcon[0], bhcon[1])
 #print('length4: ', len(bhcon[2]))
-#print('index: ', bhind[0], bhind[1])
-#print('length5: ', len(bhind[2]))
+print('index: ', bhind[0], bhind[1])
+print('length5: ', len(bhind[2]))
 #print(' ')
 #print(' ')
 #print('tactical_rebal_result: ', tactical_rebal_result[0], tactical_rebal_result[1])
@@ -329,9 +442,13 @@ tact_ind = tactical_rebalance(index_allocation, index_percent, im_ind)
 # heat map of position correlations. Not super important for MVP, but
 # will play a large role in demonstrating the way rebalance strategies 
 # work
-import seaborn as sb
-corr = organize_data_func(user_input_arr).corr()
-sb.heatmap(corr, cmap="Blues", annot=True)
+
+##############################
+##### Correlation Matrix #####
+#import seaborn as sb
+##corr = organize_data_func(user_input_arr).corr()
+#corr = return_table.corr()
+#sb.heatmap(corr, cmap="Blues", annot=True)
 
 
 
@@ -368,7 +485,7 @@ plt.show()
 
 # returns your average compounding interest rate accross the
 # investment time period. Need to add each investment result
-principal = 1000 # starting dollar amount for portfolio
+principal = 1000 # starting dollar amount
 portfolio1 = yearly_return(principal, buy_and_hold_result[0], return_table)
 print(portfolio1)
 print(buy_and_hold_result[0])
@@ -378,6 +495,11 @@ portfolio2 = yearly_return(principal, tactical_rebal_result[0], return_table)
 print(portfolio2)
 print(tactical_rebal_result[0])
 
+p3 = yearly_return(principal, bhagg[0], aggressive_table)
+print('p3: ', bhagg[0])
+
+p4 = yearly_return(principal, bhind[0], index_table)
+print('p4: ', bhind[0])
 
 ##################################################################################
 # END DISPLAY #
